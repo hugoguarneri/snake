@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mouse Snake Multiplayer Game</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+            background: #f0f0f0;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const gridSize = 20;
+        const tileCount = canvas.width / gridSize;
+
+        let player = null;
+        let players = {};
+        let food = { x: 15, y: 15 };
+        let score = 0;
+
+        const socket = io(); // Conectar al servidor
+
+        // Capturar movimiento del mouse
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            socket.emit('mouseMove', { x: mouseX, y: mouseY }); // Enviar posición del ratón al servidor
+        });
+
+        // Recibir actualizaciones de jugadores del servidor
+        socket.on('playerUpdate', (data) => {
+            players = data;
+            draw();
+        });
+
+        // Recibir actualizaciones de comida del servidor
+        socket.on('foodUpdate', (data) => {
+            food = data;
+            draw();
+        });
+
+        function draw() {
+            // Limpiar canvas
+            ctx.fillStyle = '#f0f0f0';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Dibujar todos los jugadores (serpientes)
+            for (let id in players) {
+                ctx.fillStyle = getColorForPlayer(id); // Color diferente por jugador
+                players[id].segments.forEach(segment => {
+                    ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize - 2, gridSize - 2);
+                });
+            }
+
+            // Dibujar comida
+            ctx.fillStyle = 'red';
+            ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize - 2, gridSize - 2);
+
+            // Dibujar puntaje (puedes mejorarlo para mostrar puntajes individuales)
+            ctx.fillStyle = 'black';
+            ctx.font = '20px Arial';
+            ctx.fillText(`Score: ${score}`, 10, 30);
+        }
+
+        // Función para asignar colores diferentes a cada jugador
+        function getColorForPlayer(id) {
+            const colors = ['green', 'blue', 'purple', 'orange', 'pink'];
+            return colors[id.charCodeAt(0) % colors.length];
+        }
+
+        // Iniciar el bucle de dibujo (solo para renderizar, el juego se actualiza desde el servidor)
+        function gameLoop() {
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
